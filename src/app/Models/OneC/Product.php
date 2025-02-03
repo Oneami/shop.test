@@ -11,6 +11,7 @@ namespace App\Models\OneC;
  * @property string $SP6123 Фабрика
  * @property string $SP6124 Тип (категория)
  * @property string $SP6125 СезонСайт (коллекция)
+ * @property int $SP6142 id товара с сайта
  */
 class Product extends AbstractOneCModel
 {
@@ -33,12 +34,13 @@ class Product extends AbstractOneCModel
         'SP6123',
         'SP6124',
         'SP6125',
+        'SP6142',
     ];
 
     /**
      * The attributes that should be cast.
      *
-     * @var array
+     * @var array<string, string>
      */
     protected $casts = [
         'CODE' => 'integer',

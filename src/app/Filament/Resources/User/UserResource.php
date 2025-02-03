@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\User;
 
+use App\Enums\User\OrderType;
 use App\Filament\Components\Forms\RelationManager;
 use App\Filament\Resources\User\UserResource\Pages;
 use App\Filament\Resources\User\UserResource\RelationManagers\BlacklistRelationManager;
@@ -161,18 +162,26 @@ class UserResource extends Resource
                         $nameColumns = ['first_name', 'last_name', 'patronymic_name'];
                         $query->whereAny($nameColumns, 'like', "%$search%");
                     }),
-                Tables\Columns\IconColumn::make('has_online_orders')
-                    ->label('Онлайн заказы')
-                    ->boolean()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('email')
-                    ->label('E-mail'),
                 Tables\Columns\TextColumn::make('phone')
                     ->label('Телефон'),
+                Tables\Columns\TextColumn::make('metadata.last_order_type')
+                    ->label('Тип последнего заказа')
+                    ->sortable()
+                    ->toggleable()
+                    ->toggledHiddenByDefault(),
                 Tables\Columns\TextColumn::make('orders')
                     ->label('Сумма покупок')
                     ->getStateUsing(fn (User $user) => $user->completedOrdersCost())
                     ->suffix(' руб.'),
+                Tables\Columns\TextColumn::make('metadata.last_order_date')
+                    ->label('Дата последнего заказа')
+                    ->dateTime('d.m.Y H:i:s')
+                    ->toggleable()
+                    ->toggledHiddenByDefault(),
+                Tables\Columns\TextColumn::make('email')
+                    ->label('E-mail')
+                    ->toggleable()
+                    ->toggledHiddenByDefault(),
                 Tables\Columns\TextColumn::make('group.name')
                     ->label('Группа'),
                 Tables\Columns\TextColumn::make('reviews_count')
@@ -199,50 +208,52 @@ class UserResource extends Resource
                 Tables\Actions\EditAction::make(),
             ])
             ->filters([
-                Tables\Filters\TernaryFilter::make('has_online_orders')
-                    ->label('Наличие онлайн заказов')
-                    ->placeholder('Все способы заказов')
-                    ->trueLabel('Только онлайн заказы')
-                    ->falseLabel('Только оффлайн заказы'),
+                Tables\Filters\SelectFilter::make('last_order_type')
+                    ->label('Тип последнего заказа')
+                    ->options(OrderType::class)
+                    ->query(function (Builder $query, array $data) {
+                        if ($data['value']) {
+                            $query->whereRelation('metadata', 'last_order_type', $data['value']);
+                        }
+                    }),
                 Tables\Filters\Filter::make('order_date')
                     ->form([
-                        DatePicker::make('ordered_from')
-                            ->label('Совершали покупки с:')
-                            ->native(false)
-                            ->closeOnDateSelection(),
-                        DatePicker::make('ordered_until')
-                            ->label('Совершали покупки по:')
-                            ->native(false)
-                            ->closeOnDateSelection(),
+                        Fieldset::make()
+                            ->label('Совершали покупки')
+                            ->schema([
+                                DatePicker::make('ordered_from')
+                                    ->label('с:')
+                                    ->native(false)
+                                    ->closeOnDateSelection(),
+                                DatePicker::make('ordered_until')
+                                    ->label('по:')
+                                    ->native(false)
+                                    ->closeOnDateSelection(),
+                            ]),
                     ])
-                    ->columns()
-                    ->columnSpan(2)
                     ->query(function (Builder $query, array $data) {
-                        if (!$data['ordered_from'] && !$data['ordered_until']) {
-                            return;
+                        if ($data['ordered_from']) {
+                            $query->whereRelation('metadata', 'last_order_date', '>=', $data['ordered_from']);
                         }
-                        $query->whereHas('orders', function (Builder $query) use ($data) {
-                            if ($data['ordered_from']) {
-                                $query->whereDate('created_at', '>=', $data['ordered_from']);
-                            }
-                            if ($data['ordered_until']) {
-                                $query->whereDate('created_at', '<=', $data['ordered_until']);
-                            }
-                        });
+                        if ($data['ordered_until']) {
+                            $query->whereRelation('metadata', 'last_order_date', '<=', $data['ordered_until']);
+                        }
                     }),
                 Tables\Filters\Filter::make('birth_date')
                     ->form([
-                        DatePicker::make('birth_date_from')
-                            ->label('День рождения с:')
-                            ->native(false)
-                            ->closeOnDateSelection(),
-                        DatePicker::make('birth_date_until')
-                            ->label('День рождения по:')
-                            ->native(false)
-                            ->closeOnDateSelection(),
+                        Fieldset::make()
+                            ->label('День рождения')
+                            ->schema([
+                                DatePicker::make('birth_date_from')
+                                    ->label('с:')
+                                    ->native(false)
+                                    ->closeOnDateSelection(),
+                                DatePicker::make('birth_date_until')
+                                    ->label('по:')
+                                    ->native(false)
+                                    ->closeOnDateSelection(),
+                            ]),
                     ])
-                    ->columns()
-                    ->columnSpan(2)
                     ->query(function (Builder $query, array $data) {
                         if ($data['birth_date_from']) {
                             $from = Carbon::parse($data['birth_date_from']);
@@ -265,6 +276,29 @@ class UserResource extends Resource
                                     $query->whereMonth('birth_date', '<', $until->month);
                                 });
                             });
+                        }
+                    }),
+                Tables\Filters\Filter::make('register_date')
+                    ->form([
+                        Fieldset::make()
+                            ->label('Дата регистрации')
+                            ->schema([
+                                DatePicker::make('registered_from')
+                                    ->label('с:')
+                                    ->native(false)
+                                    ->closeOnDateSelection(),
+                                DatePicker::make('registered_until')
+                                    ->label('по:')
+                                    ->native(false)
+                                    ->closeOnDateSelection(),
+                            ]),
+                    ])
+                    ->query(function (Builder $query, array $data) {
+                        if ($data['registered_from']) {
+                            $query->where('created_at', '>=', $data['registered_from']);
+                        }
+                        if ($data['registered_until']) {
+                            $query->where('created_at', '<=', $data['registered_until']);
                         }
                     }),
                 QueryBuilder::make()

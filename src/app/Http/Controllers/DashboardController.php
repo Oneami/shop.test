@@ -29,7 +29,6 @@ class DashboardController extends Controller
     /**
      * Получить данные профиля
      *
-     * @param  Request  $request
      * @return \Illuminate\Routing\Redirector|\Illuminate\Http\RedirectResponse
      */
     public function update(User $user, UpdateRequest $request)
@@ -38,7 +37,7 @@ class DashboardController extends Controller
         $result = $user->update($validatedData);
 
         if ($user->hasAddresses()) {
-            $user->getFirstAddress()->update($validatedData);
+            $user->getFirstAddress()?->update($validatedData);
         } else {
             $user->addresses()->create($validatedData);
         }

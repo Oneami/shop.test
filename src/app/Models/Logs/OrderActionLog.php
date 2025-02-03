@@ -34,7 +34,7 @@ class OrderActionLog extends Model
     /**
      * The name of the "updated at" column.
      *
-     * @var string
+     * @var string|null
      */
     public const UPDATED_AT = null;
 
@@ -72,13 +72,5 @@ class OrderActionLog extends Model
             'user_addr' => 'Адрес',
             'weight' => 'Вес',
         ];
-    }
-
-    /**
-     * Farmat date in admin panel
-     */
-    protected function serializeDate(\DateTimeInterface $date): string
-    {
-        return $date->format('d.m.Y H:i:s');
     }
 }

@@ -2,11 +2,8 @@
 
 namespace App\Services;
 
-use App\Facades\Sale;
 use App\Models\Cart;
 use App\Models\CartData;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cookie;
 
 class CartService
 {
@@ -17,7 +14,7 @@ class CartService
      */
     public function initCart(): Cart
     {
-        $cart = $this->cart->query()->findOrNew($this->getCartId());
+        $cart = client()->cart ?? new Cart([]);
         $cart->load('items');
 
         return $cart;
@@ -32,9 +29,8 @@ class CartService
             'product.brand',
             'product.category',
             'product.media',
-            'product.styles',
-            'product.sizes',
-            'size:id,name',
+            'product.sizes:id',
+            'size',
         ]);
 
         /** @var CartData $item */
@@ -53,27 +49,16 @@ class CartService
     }
 
     /**
-     * Get the cart ID for the current user or guest.
-     */
-    private function getCartId(): ?int
-    {
-        return Auth::user() ? Auth::user()->cart_token : Cookie::get('cart_token');
-    }
-
-    /**
      * Calc & return cart prices
+     *
+     * @deprecated
      */
     public function getCartPrices(Cart $cart): array
     {
-        Sale::disableUserSale();
-        Sale::applyToCart($cart);
-        $totalPriceWithoutUserSale = $cart->getTotalPrice();
-
-        Sale::enableUserSale();
-        Sale::applyToCart($cart);
-        $totalPrice = $cart->getTotalPrice();
-        $totalOldPrice = $cart->getTotalOldPrice();
-
-        return compact('totalPrice', 'totalOldPrice', 'totalPriceWithoutUserSale');
+        return [
+            'totalPrice' => $cart->getTotalPrice(),
+            'totalOldPrice' => $cart->getTotalOldPrice(),
+            'totalPriceWithoutUserSale' => $cart->getTotalPriceWithoutUserSale(),
+        ];
     }
 }

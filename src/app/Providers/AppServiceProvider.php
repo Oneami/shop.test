@@ -14,10 +14,13 @@ use FacebookAds\Api;
 use Illuminate\Database\Connection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Application;
+use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Notifications\ChannelManager;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
 use Sentry\Severity;
 use Spatie\Permission\Models\Role;
@@ -70,13 +73,13 @@ class AppServiceProvider extends ServiceProvider
 
         // $this->modelShouldBeStrict($app->isProduction());
 
-        if ($app->isProduction()) {
-            $app['request']->server->set('HTTPS', 'on');
-        }
+        // $this->logQueries();
 
         if ($app->isLocal()) {
             $app['config']['filesystems.disks.public.url'] = 'https://barocco.by/media';
         }
+
+        JsonResource::withoutWrapping();
 
         Gate::policy(Role::class, RolePolicy::class);
     }
@@ -98,5 +101,16 @@ class AppServiceProvider extends ServiceProvider
         //         captureMessage("Attempted to lazy load [{$relation}] on model [{$class}].", Severity::warning());
         //     });
         // }
+    }
+
+    private function logQueries(): void
+    {
+        DB::listen(function ($query) {
+            $sql = $query->sql;
+            $bindings = $query->bindings;
+            $executionTime = $query->time;
+
+            Log::debug($sql, compact('bindings', 'executionTime'));
+        });
     }
 }

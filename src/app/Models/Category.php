@@ -29,7 +29,7 @@ use Spatie\EloquentSortable\SortableTrait;
  * @property \Illuminate\Support\Carbon|null $deleted_at
  * @property int $order Порядок сортировки
  * @property string $model
- * @property mixed $name
+ * @property string $name
  *
  * @property-read \App\Models\Category|null $parentCategory
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Category[] $categories
@@ -226,7 +226,7 @@ class Category extends Model implements Sortable
     public function name(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->isRoot() ? 'Женская обувь' : $this->title
+            get: fn (): string => $this->isRoot() ? 'Женская обувь' : $this->title
         );
     }
 
@@ -261,5 +261,13 @@ class Category extends Model implements Sortable
         }
 
         return $name;
+    }
+
+    /**
+     * Mark filter as invisible
+     */
+    public function isInvisible(): bool
+    {
+        return $this->isRoot();
     }
 }

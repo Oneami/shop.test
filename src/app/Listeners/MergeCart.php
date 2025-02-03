@@ -2,9 +2,10 @@
 
 namespace App\Listeners;
 
+use App\Events\User\UserLogin;
+use App\Facades\Device;
 use App\Models\Cart;
 use App\Models\CartData;
-use Illuminate\Support\Facades\Cookie;
 
 class MergeCart
 {
@@ -21,35 +22,25 @@ class MergeCart
     /**
      * Handle the event.
      *
-     * @param  object  $event
      * @return void
      */
-    public function handle($event)
+    public function handle(UserLogin $event)
     {
-        // @todo Will finish after technical task
-
-        /*$cartTokenInCookie = Cookie::get('cart_token');
-
-        if (empty($cartTokenInCookie)) {
+        $deviceCart = Cart::query()->with('items')->firstWhere('device_id', Device::id());
+        if (!$deviceCart) {
             return;
         }
 
-        $authUserCart = Cart::find($event->user->cart_token);
+        $userCart = Cart::query()->firstWhere('user_id', $event->user->id);
+        if (!$userCart) {
+            $deviceCart->update(['user_id' => $event->user->id]);
 
-        if (empty($authUserCart)) {
-            $authUserCart = (new Cart())->createIfNotExists();
+            return;
         }
 
-        // auth 0, cookie 0
-        // auth 1, cookie 0
-        // auth 0, cookie 1
-        // auth 1, cookie 1
-        // not created cart for user
-        // not created cart for cookie (return)
-
-        dd($authUserCart);
-
-        // CartData::where('cart_id', $cartTokenInCookie)
-            // ->update(['cart_id', $])*/
+        $deviceCart->items->each(function (CartData $cartItem) use ($userCart) {
+            $userCart->addItem($cartItem->product_id, $cartItem->size_id);
+        });
+        $deviceCart->delete();
     }
 }

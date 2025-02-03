@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Spatie\GoogleTagManager\DataLayer;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -21,6 +22,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * @property int $id
  * @property int|null $one_c_id
  * @property string $slug
+ * @property string $old_slug
  * @property string $sku
  * @property int $label_id
  * @property float $buy_price
@@ -101,6 +103,13 @@ class Product extends Model implements HasMedia
      * Ссылка на товар
      */
     protected ?string $url = null;
+
+    /**
+     * DataLayer for product
+     *
+     * @todo remove from product Model
+     */
+    public DataLayer $dataLayer;
 
     /**
      * Категория товара
@@ -275,7 +284,7 @@ class Product extends Model implements HasMedia
      */
     public function getUrl(): string
     {
-        return $this->url ?? ($this->url = $this->category->getUrl() . '/' . $this->slug);
+        return route('product.show', $this->slug);
     }
 
     /**
@@ -407,10 +416,8 @@ class Product extends Model implements HasMedia
 
     /**
      * get product price
-     *
-     * @return float
      */
-    public function getFormattedPrice()
+    public function getFormattedPrice(): string
     {
         return Currency::convertAndFormat($this->getFinalPrice());
     }
@@ -443,10 +450,8 @@ class Product extends Model implements HasMedia
 
     /**
      * get product old price
-     *
-     * @return float
      */
-    public function getFormattedOldPrice()
+    public function getFormattedOldPrice(): string
     {
         return Currency::convertAndFormat($this->getFinalOldPrice());
     }
@@ -472,6 +477,14 @@ class Product extends Model implements HasMedia
     public function isNew(): bool
     {
         return $this->old_price == 0;
+    }
+
+    /**
+     * Is the product in favorite list
+     */
+    public function isFavorite(): bool
+    {
+        return isset($this->favorite);
     }
 
     /**

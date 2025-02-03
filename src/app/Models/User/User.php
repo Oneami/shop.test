@@ -2,8 +2,10 @@
 
 namespace App\Models\User;
 
+use App\Contracts\ClientInterface;
 use App\Models\Cart;
 use App\Models\Country;
+use App\Models\Favorite;
 use App\Models\Feedback;
 use App\Models\Logs\SmsLog;
 use App\Models\OneC;
@@ -26,7 +28,6 @@ use libphonenumber\PhoneNumberUtil;
 
 /**
  * @property int $id
- * @property int|null $cart_token
  * @property int $group_id
  * @property string|null $discount_card_number relation with 1C user
  * @property string|null $email
@@ -34,7 +35,6 @@ use libphonenumber\PhoneNumberUtil;
  * @property string|null $patronymic_name
  * @property string $phone
  * @property \Illuminate\Support\Carbon|null $birth_date
- * @property bool $has_online_orders
  * @property \Illuminate\Support\Carbon|null $phone_verified_at
  * @property \Illuminate\Support\Carbon|null $email_verified_at
  * @property string|null $remember_token
@@ -45,8 +45,10 @@ use libphonenumber\PhoneNumberUtil;
  *
  * @property-read \App\Models\User\Group|null $group
  * @property-read \App\Models\Cart|null $cart
+ * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Favorite[] $favorites
  * @property-read \App\Models\User\UserPassport|null $passport
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\User\Address[] $addresses
+ * @property-read \App\Models\User\UserMetadata|null $metadata
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Orders\Order[] $orders
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Orders\OfflineOrder[] $offlineOrders
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Feedback[] $reviews
@@ -58,7 +60,7 @@ use libphonenumber\PhoneNumberUtil;
  *
  * @mixin \Illuminate\Database\Eloquent\Builder
  */
-class User extends Authenticatable implements MustVerifyEmail
+class User extends Authenticatable implements ClientInterface, MustVerifyEmail
 {
     use HasApiTokens, HasFactory, Notifiable;
 
@@ -76,7 +78,6 @@ class User extends Authenticatable implements MustVerifyEmail
         'phone',
         'email',
         'birth_date',
-        'has_online_orders',
         'created_at',
     ];
 
@@ -131,9 +132,17 @@ class User extends Authenticatable implements MustVerifyEmail
     /**
      * User's cart
      */
-    public function cart(): BelongsTo
+    public function cart(): HasOne
     {
-        return $this->belongsTo(Cart::class, 'cart_token');
+        return $this->hasOne(Cart::class);
+    }
+
+    /**
+     * User's favorites
+     */
+    public function favorites(): HasMany
+    {
+        return $this->hasMany(Favorite::class);
     }
 
     /**
@@ -163,13 +172,19 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Get first user address if exist
-     *
-     * @return Address
+     * Get the user metadata associated with the user.
      */
-    public function getFirstAddress()
+    public function metadata(): HasOne
     {
-        return optional($this->addresses[0] ?? null);
+        return $this->hasOne(UserMetadata::class);
+    }
+
+    /**
+     * Get first user address if exist
+     */
+    public function getFirstAddress(): ?Address
+    {
+        return $this->addresses[0] ?? null;
     }
 
     /**
@@ -177,7 +192,7 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function getFirstAddressCountryId(): ?int
     {
-        return $this->getFirstAddress()->country_id;
+        return $this->getFirstAddress()?->country_id;
     }
 
     /**
@@ -203,7 +218,7 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function hasAddresses(): bool
     {
-        return !empty($this->getFirstAddress()->id);
+        return !empty($this->getFirstAddress());
     }
 
     /**
@@ -216,8 +231,6 @@ class User extends Authenticatable implements MustVerifyEmail
 
     /**
      * Interact with the user's first name.
-     *
-     * @param  string  $firstName
      */
     public function firstName(): Attribute
     {
@@ -260,8 +273,6 @@ class User extends Authenticatable implements MustVerifyEmail
 
     /**
      * Retrieve the blacklist associated with the user.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasOne The relationship between the user and the blacklist.
      */
     public function blacklist(): HasOne
     {
@@ -270,8 +281,6 @@ class User extends Authenticatable implements MustVerifyEmail
 
     /**
      * Retrieve the blacklistLogs associated with the user.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany The relationship between the user and the blacklistLogs.
      */
     public function blacklistLogs(): HasMany
     {
@@ -280,8 +289,6 @@ class User extends Authenticatable implements MustVerifyEmail
 
     /**
      * Define a relationship with the user's online payments.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany The relationship between the user and their online payments.
      */
     public function payments(): HasManyThrough
     {
@@ -298,8 +305,6 @@ class User extends Authenticatable implements MustVerifyEmail
 
     /**
      * Get the user discount card from 1C associated with the user.
-     *
-     * Problem with excess spaces
      */
     public function discountCard(): BelongsTo
     {
@@ -333,7 +338,7 @@ class User extends Authenticatable implements MustVerifyEmail
     public function hasRequiredFields(): bool
     {
         return !empty($this->first_name) && !empty($this->last_name)
-            && !empty($this->getFirstAddress()->city);
+            && !empty($this->getFirstAddress()?->city);
     }
 
     /**
@@ -400,7 +405,6 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     private function _hasReviewAfterOrder(): bool
     {
-        /** @var Order $lastOrder */
         if ($lastOrderDate = $this->orders()->latest()->value('created_at')) {
             return $this->reviews()->where('created_at', '>', $lastOrderDate)
                 ->whereHas('media')->exists();

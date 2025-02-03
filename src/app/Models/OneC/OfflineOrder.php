@@ -44,6 +44,7 @@ use libphonenumber\PhoneNumberUtil;
  * @property-read Stock|null $stock
  * @property-read Product|null $product
  * @property-read Size|null $size
+ * @property-read DiscountCard|null $discountCard
  */
 class OfflineOrder extends AbstractOneCModel
 {
@@ -62,7 +63,7 @@ class OfflineOrder extends AbstractOneCModel
     /**
      * The attributes that should be cast.
      *
-     * @var array
+     * @var array<string, string>
      */
     protected $casts = [
         'CODE' => 'integer',
@@ -72,6 +73,11 @@ class OfflineOrder extends AbstractOneCModel
         'SP6100' => 'integer',
         'SP6101' => 'float',
     ];
+
+    /**
+     * Array of fields that should not be trimmed during hydration
+     */
+    public array $doNotHydrate = ['SP6089'];
 
     /**
      * Check if the order is a return.
@@ -111,6 +117,14 @@ class OfflineOrder extends AbstractOneCModel
     public function size(): BelongsTo
     {
         return $this->belongsTo(Size::class, 'SP6100', 'name');
+    }
+
+    /**
+     * Get the user discount card from 1C associated with the order.
+     */
+    public function discountCard(): BelongsTo
+    {
+        return $this->belongsTo(DiscountCard::class, 'SP6089', 'ID');
     }
 
     /**

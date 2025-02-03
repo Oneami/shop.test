@@ -2,6 +2,7 @@
 
 namespace App\Jobs\OneC;
 
+use App\Enums\User\OrderType;
 use App\Jobs\AbstractJob;
 use App\Models\Bots\Telegram\TelegramChat;
 use App\Models\Brand;
@@ -109,7 +110,7 @@ class UpdateOfflineOrdersJob extends AbstractJob
     private function getNewOrders(): Collection
     {
         return OfflineOrder1C::query()
-            ->with(['stock', 'product', 'size'])
+            ->with(['stock', 'product', 'size', 'discountCard'])
             ->where('CODE', '>', $this->getLatestCode())
             ->limit(self::NEW_ORDERS_LIMIT)
             ->orderBy('CODE')
@@ -150,11 +151,17 @@ class UpdateOfflineOrdersJob extends AbstractJob
                 'first_name' => $order->SP6130,
                 'last_name' => $order->SP6129,
                 'patronymic_name' => $order->SP6131,
+                'birth_date' => $order->discountCard?->SP3970,
             ]);
 
         if (!$user->wasRecentlyCreated) {
             $user->update(['discount_card_number' => $order->SP6089]);
         }
+
+        $user->metadata()->updateOrCreate([], [
+            'last_order_type' => OrderType::OFFLINE,
+            'last_order_date' => $order->SP6107,
+        ]);
 
         return $user;
     }

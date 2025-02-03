@@ -7,13 +7,13 @@ use App\Enums\Order\OrderMethod;
 use App\Enums\Order\OrderTypeEnum;
 use App\Enums\Payment\OnlinePaymentStatusEnum;
 use App\Models\Country;
-use App\Models\Device;
 use App\Models\Logs\OrderActionLog;
 use App\Models\Logs\OrderDistributionLog;
 use App\Models\Logs\SmsLog;
 use App\Models\Payments\Installment;
 use App\Models\Payments\OnlinePayment;
 use App\Models\Stock;
+use App\Models\User\Device;
 use App\Models\User\User;
 use Deliveries\DeliveryMethod;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -69,7 +69,7 @@ use Payments\PaymentMethod;
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Orders\OrderItem[] $items
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\Orders\OrderItemExtended[] $itemsExtended
  * @property-read \App\Models\User\User|null $user
- * @property-read \App\Models\Device|null $device
+ * @property-read \App\Models\User\Device|null $device
  * @property-read \App\Models\Country|null $country
  * @property-read \Deliveries\DeliveryMethod|null $delivery
  * @property-read \App\Models\Stock|null $stock
@@ -134,6 +134,17 @@ class Order extends Model
 
     public static $itemDepartureStatuses = [
         'installment', 'packaging', 'pickup', 'sent', 'fitting', 'complete', 'return', 'return_fitting',
+    ];
+
+    /**
+     * The model's attributes.
+     *
+     * @var array
+     */
+    protected $attributes = [
+        'delivery_cost' => 0.0,
+        'delivery_price' => 0.0,
+        'weight' => 0.0,
     ];
 
     /**

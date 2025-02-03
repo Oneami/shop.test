@@ -4,9 +4,10 @@ namespace App\Models\Payments;
 
 use App\Models\Orders\Order;
 use App\Models\Orders\OrderItem;
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOneThrough;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
@@ -22,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property \Illuminate\Support\Carbon|null $contract_date Дата заключения договора рассрочки
  *
  * @property-read \App\Models\Orders\OrderItem|null $orderItem
+ * @property-read \App\Models\Orders\Order|null $order
  *
  * @mixin \Illuminate\Database\Eloquent\Builder
  */
@@ -69,7 +71,7 @@ class Installment extends Model
     /**
      * Get the installment's order.
      */
-    public function order()
+    public function order(): HasOneThrough
     {
         return $this->hasOneThrough(
             Order::class,
@@ -86,8 +88,10 @@ class Installment extends Model
      */
     public function getNextPaymentDate(): Carbon
     {
-        if (empty($this->nextPaymentDate)) {
-            $this->nextPaymentDate = $this->created_at->copy()->setMonth(now()->month);
+        if (!$this->nextPaymentDate) {
+            $this->nextPaymentDate = $this->created_at->copy()
+                ->setYear(now()->year)
+                ->setMonth(now()->month);
 
             if ($this->nextPaymentDate->isPast()) {
                 $this->nextPaymentDate->addMonth();
